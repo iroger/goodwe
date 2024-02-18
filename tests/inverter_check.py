@@ -14,7 +14,7 @@ logging.basicConfig(
 )
 
 # Set the appropriate IP address
-IP_ADDRESS = "192.168.2.14"
+IP_ADDRESS = "192.168.2.188"
 FAMILY = "ET"  # One of ET, EH, ES, EM, DT, NS, XS or None to detect family automatically
 COMM_ADDR = 0xf7  # Usually 0xf7 for ET/EH/EM/ES or 0x7f for DT/D-NS/XS, or None for default value
 TIMEOUT = 1
@@ -39,18 +39,18 @@ print(f"Identified inverter\n"
 # -----------------
 # Read runtime data
 # -----------------
-# response = asyncio.run(inverter.read_runtime_data())
-# for sensor in inverter.sensors():
-#    if sensor.id_ in response:
-#        print(f"{sensor.id_}: \t\t {sensor.name} = {response[sensor.id_]} {sensor.unit}")
+response = asyncio.run(inverter.read_runtime_data())
+for sensor in inverter.sensors():
+   if sensor.id_ in response:
+       print(f"{sensor.id_}: \t\t {sensor.name} = {response[sensor.id_]} {sensor.unit}")
 
 # -------------
 # Read settings
 # -------------
-# response = asyncio.run(inverter.read_settings_data())
-# for setting in inverter.settings():
-#    if setting.id_ in response:
-#        print(f"{setting.id_}: \t\t {setting.name} = {response[setting.id_]} {setting.unit}")
+response = asyncio.run(inverter.read_settings_data())
+for setting in inverter.settings():
+   if setting.id_ in response:
+       print(f"{setting.id_}: \t\t {setting.name} = {response[setting.id_]} {setting.unit}")
 
 # -----------------
 # Set inverter time
