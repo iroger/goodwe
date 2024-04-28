@@ -6,14 +6,14 @@ from unittest import TestCase
 from goodwe.et import ET
 from goodwe.exceptions import RequestRejectedException, RequestFailedException
 from goodwe.inverter import OperationMode
-from goodwe.protocol import ModbusReadCommand, ProtocolCommand, ProtocolResponse
+from goodwe.protocol import ModbusRtuReadCommand, ProtocolCommand, ProtocolResponse
 
 
 class EtMock(TestCase, ET):
 
     def __init__(self, methodName='runTest'):
         TestCase.__init__(self, methodName)
-        ET.__init__(self, "localhost")
+        ET.__init__(self, "localhost", 8899)
         self.sensor_map = {s.id_: s.unit for s in self.sensors()}
         self._mock_responses = {}
         self._list_of_requests = []
@@ -56,9 +56,9 @@ class GW10K_ET_Test(EtMock):
         self.mock_response(self._READ_RUNNING_DATA, 'GW10K-ET_running_data.hex')
         self.mock_response(self._READ_METER_DATA, 'GW10K-ET_meter_data.hex')
         self.mock_response(self._READ_BATTERY_INFO, 'GW10K-ET_battery_info.hex')
-        self.mock_response(ModbusReadCommand(self.comm_addr, 47547, 6), 'ILLEGAL DATA ADDRESS')
-        self.mock_response(ModbusReadCommand(self.comm_addr, 47589, 6), 'ILLEGAL DATA ADDRESS')
-        self.mock_response(ModbusReadCommand(self.comm_addr, 47515, 4), 'eco_mode_v1.hex')
+        self.mock_response(ModbusRtuReadCommand(self.comm_addr, 47547, 6), 'ILLEGAL DATA ADDRESS')
+        self.mock_response(ModbusRtuReadCommand(self.comm_addr, 47589, 6), 'ILLEGAL DATA ADDRESS')
+        self.mock_response(ModbusRtuReadCommand(self.comm_addr, 47515, 4), 'eco_mode_v1.hex')
 
     def test_GW10K_ET_device_info(self):
         self.loop.run_until_complete(self.read_device_info())
@@ -310,8 +310,8 @@ class GW10K_ET_fw819_Test(EtMock):
     def __init__(self, methodName='runTest'):
         EtMock.__init__(self, methodName)
         self.mock_response(self._READ_DEVICE_VERSION_INFO, 'GW10K-ET_device_info_fw819.hex')
-        self.mock_response(ModbusReadCommand(self.comm_addr, 47547, 6), 'eco_mode_v2.hex')
-        self.mock_response(ModbusReadCommand(self.comm_addr, 47589, 6), 'ILLEGAL DATA ADDRESS')
+        self.mock_response(ModbusRtuReadCommand(self.comm_addr, 47547, 6), 'eco_mode_v2.hex')
+        self.mock_response(ModbusRtuReadCommand(self.comm_addr, 47589, 6), 'ILLEGAL DATA ADDRESS')
         asyncio.get_event_loop().run_until_complete(self.read_device_info())
 
     def test_GW10K_ET_fw819_device_info(self):
@@ -369,7 +369,7 @@ class GW10K_ET_fw1023_Test(EtMock):
         self.assertEqual('02041-23-S00', self.arm_firmware)
 
     def test_GW10K_ET_setting_fw1023(self):
-        self.assertEqual(40, len(self.settings()))
+        self.assertEqual(46, len(self.settings()))
         settings = {s.id_: s for s in self.settings()}
         self.assertEqual('PeakShavingMode', type(settings.get("peak_shaving_mode")).__name__)
 
@@ -438,7 +438,7 @@ class GW6000_EH_Test(EtMock):
         self.assertSensor('temperature', 38.6, 'C', data)
         self.assertSensor('function_bit', 256, '', data)
         self.assertSensor('bus_voltage', 380.6, 'V', data)
-        self.assertSensor('nbus_voltage', -0.1, 'V', data)
+        self.assertSensor('nbus_voltage', 0, 'V', data)
         self.assertSensor('vbattery1', 0.0, 'V', data)
         self.assertSensor('ibattery1', 0.1, 'A', data)
         self.assertSensor('pbattery1', 0, 'W', data)
@@ -449,7 +449,7 @@ class GW6000_EH_Test(EtMock):
         self.assertSensor('safety_country_label', 'ES-A', '', data)
         self.assertSensor('work_mode', 1, '', data)
         self.assertSensor('work_mode_label', 'Normal (On-Grid)', '', data)
-        self.assertSensor('operation_mode', -1, '', data)
+        self.assertSensor('operation_mode', 0, '', data)
         self.assertSensor('error_codes', 0, '', data)
         self.assertSensor('errors', '', '', data)
         self.assertSensor("e_total", 59.4, 'kWh', data)
@@ -469,7 +469,7 @@ class GW6000_EH_Test(EtMock):
         self.assertSensor('diagnose_result_label',
                           'Battery voltage low, Battery SOC low, Battery SOC in back, Discharge Driver On, Self-use load light, Battery Disconnected, Self-use off, Export power limit set, PF value set, Real power limit set',
                           '', data)
-        self.assertSensor('house_consumption', 1710, 'W', data)
+        self.assertSensor('house_consumption', 1712, 'W', data)
 
 
 class GEH10_1U_10_Test(EtMock):
@@ -539,7 +539,7 @@ class GEH10_1U_10_Test(EtMock):
         self.assertSensor('temperature', 67.0, 'C', data)
         self.assertSensor('function_bit', 257, '', data)
         self.assertSensor('bus_voltage', 458.4, 'V', data)
-        self.assertSensor('nbus_voltage', -0.1, 'V', data)
+        self.assertSensor('nbus_voltage', 0, 'V', data)
         self.assertSensor('vbattery1', 406.1, 'V', data)
         self.assertSensor('ibattery1', -3.8, 'A', data)
         self.assertSensor('pbattery1', -1566, 'W', data)
@@ -550,7 +550,7 @@ class GEH10_1U_10_Test(EtMock):
         self.assertSensor('safety_country_label', 'Australia A', '', data)
         self.assertSensor('work_mode', 1, '', data)
         self.assertSensor('work_mode_label', 'Normal (On-Grid)', '', data)
-        self.assertSensor('operation_mode', -1, '', data)
+        self.assertSensor('operation_mode', 0, '', data)
         self.assertSensor('error_codes', 0, '', data)
         self.assertSensor('errors', '', '', data)
         self.assertSensor('e_total', 10225.8, 'kWh', data)
@@ -1085,7 +1085,7 @@ class GW29K9_ET_Test(EtMock):
         self.assertSensor('meter_apparent_power3', -3175, 'VA', data)
         self.assertSensor('meter_apparent_power_total', -5667, 'VA', data)
         self.assertSensor('meter_type', 2, '', data)
-        self.assertSensor('meter_sw_version', -1, '', data)
+        self.assertSensor('meter_sw_version', 0, '', data)
         self.assertSensor('meter2_active_power', 0, 'W', data)
         self.assertSensor('meter2_e_total_exp', 0.0, 'kWh', data)
         self.assertSensor('meter2_e_total_imp', 0.0, 'kWh', data)

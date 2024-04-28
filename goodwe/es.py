@@ -7,15 +7,14 @@ from .exceptions import InverterError
 from .inverter import Inverter
 from .inverter import OperationMode
 from .inverter import SensorKind as Kind
-from .protocol import ProtocolCommand, Aa55ProtocolCommand, Aa55ReadCommand, Aa55WriteCommand, Aa55WriteMultiCommand, \
-    ModbusReadCommand, ModbusWriteCommand, ModbusWriteMultiCommand
+from .protocol import ProtocolCommand, Aa55ProtocolCommand, Aa55ReadCommand, Aa55WriteCommand, Aa55WriteMultiCommand
 from .sensor import *
 
 logger = logging.getLogger(__name__)
 
 
 class ES(Inverter):
-    """Class representing inverter of ES/EM/BP family"""
+    """Class representing inverter of ES/EM/BP family AKA platform 105"""
 
     _READ_DEVICE_VERSION_INFO: ProtocolCommand = Aa55ProtocolCommand("010200", "0182")
     _READ_DEVICE_RUNNING_DATA: ProtocolCommand = Aa55ProtocolCommand("010600", "0186")
@@ -67,7 +66,7 @@ class ES(Inverter):
         Voltage("vgrid", 34, "On-grid Voltage", Kind.AC),
         Current("igrid", 36, "On-grid Current", Kind.AC),
         Calculated("pgrid",
-                   lambda data: abs(read_bytes2(data, 38)) * (-1 if read_byte(data, 80) == 2 else 1),
+                   lambda data: abs(read_bytes2_signed(data, 38)) * (-1 if read_byte(data, 80) == 2 else 1),
                    "On-grid Export Power", "W", Kind.AC),
         Frequency("fgrid", 40, "On-grid Frequency", Kind.AC),
         Byte("grid_mode", 42, "Work Mode code", "", Kind.GRID),
@@ -87,7 +86,7 @@ class ES(Inverter):
         Energy("e_day", 67, "Today's PV Generation", Kind.PV),
         Energy("e_load_day", 69, "Today's Load", Kind.AC),
         Energy4("e_load_total", 71, "Total Load", Kind.AC),
-        Power("total_power", 75, "Total Power", Kind.AC),  # modbus 0x52c
+        PowerS("total_power", 75, "Total Power", Kind.AC),  # modbus 0x52c
         Byte("effective_work_mode", 77, "Effective Work Mode code"),
         Integer("effective_relay_control", 78, "Effective Relay Control", "", None),
         Byte("grid_in_out", 80, "On-grid Mode code", "", Kind.GRID),
@@ -121,7 +120,7 @@ class ES(Inverter):
                    round(read_voltage(data, 5) * read_current(data, 7)) +
                    (abs(round(read_voltage(data, 10) * read_current(data, 18))) *
                     (-1 if read_byte(data, 30) == 3 else 1)) -
-                   (abs(read_bytes2(data, 38)) * (-1 if read_byte(data, 80) == 2 else 1)),
+                   (abs(read_bytes2_signed(data, 38)) * (-1 if read_byte(data, 80) == 2 else 1)),
                    "House Consumption", "W", Kind.AC),
     )
 
@@ -168,8 +167,8 @@ class ES(Inverter):
         ByteH("eco_mode_4_switch", 47567, "Eco Mode Group 4 Switch"),
     )
 
-    def __init__(self, host: str, comm_addr: int = 0, timeout: int = 1, retries: int = 3):
-        super().__init__(host, comm_addr, timeout, retries)
+    def __init__(self, host: str, port: int, comm_addr: int = 0, timeout: int = 1, retries: int = 3):
+        super().__init__(host, port, comm_addr, timeout, retries)
         if not self.comm_addr:
             # Set the default inverter address
             self.comm_addr = 0xf7
@@ -228,7 +227,7 @@ class ES(Inverter):
     async def _read_setting(self, setting: Sensor) -> Any:
         count = (setting.size_ + (setting.size_ % 2)) // 2
         if self._is_modbus_setting(setting):
-            response = await self._read_from_socket(ModbusReadCommand(self.comm_addr, setting.offset, count))
+            response = await self._read_from_socket(self._read_command(setting.offset, count))
             return setting.read_value(response)
         else:
             response = await self._read_from_socket(Aa55ReadCommand(setting.offset, count))
@@ -249,7 +248,7 @@ class ES(Inverter):
         if setting.size_ == 1:
             # modbus can address/store only 16 bit values, read the other 8 bytes
             if self._is_modbus_setting(setting):
-                response = await self._read_from_socket(ModbusReadCommand(self.comm_addr, setting.offset, 1))
+                response = await self._read_from_socket(self._read_command(setting.offset, 1))
                 raw_value = setting.encode_value(value, response.response_data()[0:2])
             else:
                 response = await self._read_from_socket(Aa55ReadCommand(setting.offset, 1))
@@ -259,12 +258,12 @@ class ES(Inverter):
         if len(raw_value) <= 2:
             value = int.from_bytes(raw_value, byteorder="big", signed=True)
             if self._is_modbus_setting(setting):
-                await self._read_from_socket(ModbusWriteCommand(self.comm_addr, setting.offset, value))
+                await self._read_from_socket(self._write_command(setting.offset, value))
             else:
                 await self._read_from_socket(Aa55WriteCommand(setting.offset, value))
         else:
             if self._is_modbus_setting(setting):
-                await self._read_from_socket(ModbusWriteMultiCommand(self.comm_addr, setting.offset, raw_value))
+                await self._read_from_socket(self._write_multi_command(setting.offset, raw_value))
             else:
                 await self._read_from_socket(Aa55WriteMultiCommand(setting.offset, raw_value))
 
@@ -285,6 +284,7 @@ class ES(Inverter):
     async def get_operation_modes(self, include_emulated: bool) -> Tuple[OperationMode, ...]:
         result = [e for e in OperationMode]
         result.remove(OperationMode.PEAK_SHAVING)
+        result.remove(OperationMode.SELF_USE)
         if not include_emulated:
             result.remove(OperationMode.ECO_CHARGE)
             result.remove(OperationMode.ECO_DISCHARGE)

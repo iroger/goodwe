@@ -12,7 +12,7 @@ class DtMock(TestCase, DT):
 
     def __init__(self, methodName='runTest'):
         TestCase.__init__(self, methodName)
-        DT.__init__(self, "localhost")
+        DT.__init__(self, "localhost", 8899)
         self.sensor_map = {s.id_: s.unit for s in self.sensors()}
         self._mock_responses = {}
 
@@ -64,9 +64,9 @@ class GW6000_DT_Test(DtMock):
         self.assertSensor('vpv3', None, 'V', data)
         self.assertSensor('ipv3', None, 'A', data)
         self.assertSensor('ppv3', None, 'W', data)
-        self.assertSensor('vline1', -0.1, 'V', data)
-        self.assertSensor('vline2', -0.1, 'V', data)
-        self.assertSensor('vline3', -0.1, 'V', data)
+        self.assertSensor('vline1', 0, 'V', data)
+        self.assertSensor('vline2', 0, 'V', data)
+        self.assertSensor('vline3', 0, 'V', data)
         self.assertSensor('vgrid1', 225.6, 'V', data)
         self.assertSensor('vgrid2', 229.7, 'V', data)
         self.assertSensor('vgrid3', 231.0, 'V', data)
@@ -95,7 +95,7 @@ class GW6000_DT_Test(DtMock):
         self.assertSensor('funbit', 0, '', data)
         self.assertSensor('vbus', 601.2, 'V', data)
         self.assertSensor('vnbus', 305.4, 'V', data)
-        self.assertSensor('derating_mode', -1, '', data)
+        self.assertSensor('derating_mode', 0, '', data)
         self.assertSensor('derating_mode_label', '', '', data)
 
         self.assertFalse(self.sensor_map, f"Some sensors were not tested {self.sensor_map}")
@@ -167,9 +167,9 @@ class GW8K_DT_Test(DtMock):
         self.assertSensor("apparent_power", 0, "VA", data),
         self.assertSensor("reactive_power", 0, "var", data),
         self.assertSensor('temperature', 45.3, 'C', data)
-        self.assertSensor('e_day', None, 'kWh', data)
-        self.assertSensor('e_total', None, 'kWh', data)
-        self.assertSensor('h_total', -1, 'h', data)
+        self.assertSensor('e_day', 0.0, 'kWh', data)
+        self.assertSensor('e_total', 0.0, 'kWh', data)
+        self.assertSensor('h_total', 0, 'h', data)
         self.assertSensor('safety_country', 32, '', data)
         self.assertSensor('safety_country_label', '50Hz 230Vac Default', '', data)
         self.assertSensor('funbit', 512, '', data)
@@ -208,7 +208,7 @@ class GW5000D_NS_Test(DtMock):
         self.assertSensor('vpv2', 291.8, 'V', data)
         self.assertSensor('ipv2', 0, 'A', data)
         self.assertSensor('ppv2', 0, 'W', data)
-        self.assertSensor('vline1', -0.1, 'V', data)
+        self.assertSensor('vline1', 0, 'V', data)
         self.assertSensor('vgrid1', 240.5, 'V', data)
         self.assertSensor('igrid1', 0.0, 'A', data)
         self.assertSensor('fgrid1', 49.97, 'Hz', data)
@@ -228,8 +228,8 @@ class GW5000D_NS_Test(DtMock):
         self.assertSensor('safety_country_label', 'Australia Victoria', '', data)
         self.assertSensor('funbit', 2400, '', data)
         self.assertSensor('vbus', 291.7, 'V', data)
-        self.assertSensor('vnbus', -0.1, 'V', data)
-        self.assertSensor('derating_mode', -1, '', data)
+        self.assertSensor('vnbus', 0, 'V', data)
+        self.assertSensor('derating_mode', 0, '', data)
         self.assertSensor('derating_mode_label', '', '', data)
 
     def test_get_grid_export_limit(self):
@@ -274,7 +274,7 @@ class GW5000_MS_Test(DtMock):
         self.assertSensor('vpv3', 143.2, 'V', data)
         self.assertSensor('ipv3', 0.4, 'A', data)
         self.assertSensor('ppv3', 57, 'W', data)
-        self.assertSensor('vline1', -0.1, 'V', data)
+        self.assertSensor('vline1', 0, 'V', data)
         self.assertSensor('vgrid1', 240.1, 'V', data)
         self.assertSensor('igrid1', 0.9, 'A', data)
         self.assertSensor('fgrid1', 49.98, 'Hz', data)
@@ -294,8 +294,8 @@ class GW5000_MS_Test(DtMock):
         self.assertSensor('safety_country_label', 'Australia Victoria', '', data)
         self.assertSensor('funbit', 2384, '', data)
         self.assertSensor('vbus', 393.9, 'V', data)
-        self.assertSensor('vnbus', -0.1, 'V', data)
-        self.assertSensor('derating_mode', -1, '', data)
+        self.assertSensor('vnbus', 0, 'V', data)
+        self.assertSensor('derating_mode', 0, '', data)
         self.assertSensor('derating_mode_label', '', '', data)
 
 

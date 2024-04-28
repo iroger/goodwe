@@ -13,14 +13,17 @@ logging.basicConfig(
     level=getattr(logging, "DEBUG", None),
 )
 
+if sys.platform.startswith('win'):
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
 # Set the appropriate IP address
-IP_ADDRESS = "192.168.2.188"
+IP_ADDRESS = "192.168.2.14"
 FAMILY = "ET"  # One of ET, EH, ES, EM, DT, NS, XS or None to detect family automatically
 COMM_ADDR = 0xf7  # Usually 0xf7 for ET/EH/EM/ES or 0x7f for DT/D-NS/XS, or None for default value
 TIMEOUT = 1
 RETRIES = 3
 
-inverter = asyncio.run(goodwe.connect(IP_ADDRESS, FAMILY, COMM_ADDR, TIMEOUT, RETRIES))
+inverter = asyncio.run(goodwe.connect(IP_ADDRESS, PORT, FAMILY, COMM_ADDR, TIMEOUT, RETRIES))
 print(f"Identified inverter\n"
       f"- Model: {inverter.model_name}\n"
       f"- SerialNr: {inverter.serial_number}\n"
@@ -39,10 +42,10 @@ print(f"Identified inverter\n"
 # -----------------
 # Read runtime data
 # -----------------
-response = asyncio.run(inverter.read_runtime_data())
-for sensor in inverter.sensors():
-   if sensor.id_ in response:
-       print(f"{sensor.id_}: \t\t {sensor.name} = {response[sensor.id_]} {sensor.unit}")
+# response = asyncio.run(inverter.read_runtime_data())
+# for sensor in inverter.sensors():
+#    if sensor.id_ in response:
+#        print(f"{sensor.id_}: \t\t {sensor.name} = {response[sensor.id_]} {sensor.unit}")
 
 # -------------
 # Read settings

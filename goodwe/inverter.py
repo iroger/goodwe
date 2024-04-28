@@ -8,7 +8,7 @@ from enum import Enum, IntEnum
 from typing import Any, Callable, Dict, Tuple, Optional
 
 from .exceptions import MaxRetriesException, RequestFailedException
-from .protocol import ProtocolCommand, ProtocolResponse
+from .protocol import InverterProtocol, ProtocolCommand, ProtocolResponse, TcpInverterProtocol, UdpInverterProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -76,8 +76,9 @@ class OperationMode(IntEnum):
     BACKUP = 2
     ECO = 3
     PEAK_SHAVING = 4
-    ECO_CHARGE = 5
-    ECO_DISCHARGE = 6
+    SELF_USE = 5
+    ECO_CHARGE = 10
+    ECO_DISCHARGE = 11
 
 
 class Inverter(ABC):
@@ -86,14 +87,13 @@ class Inverter(ABC):
     Represents the inverter state and its basic behavior
     """
 
-    def __init__(self, host: str, comm_addr: int = 0, timeout: int = 1, retries: int = 3):
-        self.host: str = host
-        self.comm_addr: int = comm_addr
-        self.timeout: int = timeout
-        self.retries: int = retries
+    def __init__(self, host: str, port: int, comm_addr: int = 0, timeout: int = 1, retries: int = 3):
+        self._protocol: InverterProtocol = self._create_protocol(host, port, timeout, retries)
         self._running_loop: asyncio.AbstractEventLoop | None = None
         self._lock: asyncio.Lock | None = None
         self._consecutive_failures_count: int = 0
+
+        self.comm_addr: int = comm_addr
 
         self.model_name: str | None = None
         self.serial_number: str | None = None
@@ -107,6 +107,18 @@ class Inverter(ABC):
         self.dsp_svn_version: int | None = None
         self.arm_version: int = 0
         self.arm_svn_version: int | None = None
+
+    def _read_command(self, offset: int, count: int) -> ProtocolCommand:
+        """Create read protocol command."""
+        return self._protocol.read_command(self.comm_addr, offset, count)
+
+    def _write_command(self, register: int, value: int) -> ProtocolCommand:
+        """Create write protocol command."""
+        return self._protocol.write_command(self.comm_addr, register, value)
+
+    def _write_multi_command(self, offset: int, values: bytes) -> ProtocolCommand:
+        """Create write multiple protocol command."""
+        return self._protocol.write_multi_command(self.comm_addr, offset, values)
 
     def _ensure_lock(self) -> asyncio.Lock:
         """Validate (or create) asyncio Lock.
@@ -128,12 +140,12 @@ class Inverter(ABC):
     async def _read_from_socket(self, command: ProtocolCommand) -> ProtocolResponse:
         async with self._ensure_lock():
             try:
-                result = await command.execute(self.host, self.timeout, self.retries)
+                result = await command.execute(self._protocol)
                 self._consecutive_failures_count = 0
                 return result
             except MaxRetriesException:
                 self._consecutive_failures_count += 1
-                raise RequestFailedException(f'No valid response received even after {self.retries} retries',
+                raise RequestFailedException(f'No valid response received even after {self._protocol.retries} retries',
                                              self._consecutive_failures_count)
             except RequestFailedException as ex:
                 self._consecutive_failures_count += 1
@@ -189,8 +201,8 @@ class Inverter(ABC):
             self, command: bytes, validator: Callable[[bytes], bool] = lambda x: True
     ) -> ProtocolResponse:
         """
-        Send low level udp command (as bytes).
-        Answer command's raw response data.
+        Send low level command (as bytes).
+        Answer ProtocolResponse with command's raw response data.
         """
         return await self._read_from_socket(ProtocolCommand(command, validator))
 
@@ -275,6 +287,13 @@ class Inverter(ABC):
         Return tuple of settings definitions
         """
         raise NotImplementedError()
+
+    @staticmethod
+    def _create_protocol(host: str, port: int, timeout: int, retries: int) -> InverterProtocol:
+        if port == 502:
+            return TcpInverterProtocol(host, port, timeout, retries)
+        else:
+            return UdpInverterProtocol(host, port, timeout, retries)
 
     @staticmethod
     def _map_response(response: ProtocolResponse, sensors: Tuple[Sensor, ...]) -> Dict[str, Any]:

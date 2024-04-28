@@ -53,6 +53,17 @@ class TestUtils(TestCase):
         self.assertEqual("0031", testee.encode_value(49).hex())
 
         data = MockResponse("ff9e")
+        self.assertEqual(65438, testee.read(data))
+        self.assertEqual("ff9e", testee.encode_value(65438).hex())
+
+    def test_integer_signed(self):
+        testee = IntegerS("", 0, "", "", None)
+
+        data = MockResponse("0031")
+        self.assertEqual(49, testee.read(data))
+        self.assertEqual("0031", testee.encode_value(49).hex())
+
+        data = MockResponse("ff9e")
         self.assertEqual(-98, testee.read(data))
         self.assertEqual("ff9e", testee.encode_value(-98).hex())
 
@@ -78,8 +89,28 @@ class TestUtils(TestCase):
         self.assertEqual(803.6, testee.read(data))
         self.assertEqual("1f64", testee.encode_value(803.6).hex())
 
+        data = MockResponse("a000")
+        self.assertEqual(4096.0, testee.read(data))
+
+        data = MockResponse("ffff")
+        self.assertEqual(0, testee.read(data))
+
     def test_current(self):
         testee = Current("", 0, "", None)
+
+        data = MockResponse("0031")
+        self.assertEqual(4.9, testee.read(data))
+        self.assertEqual("0031", testee.encode_value(4.9).hex())
+
+        data = MockResponse("ff9e")
+        self.assertEqual(6543.8, testee.read(data))
+        self.assertEqual("ff9e", testee.encode_value(6543.8).hex())
+
+        data = MockResponse("ffff")
+        self.assertEqual(0, testee.read(data))
+
+    def test_current_signed(self):
+        testee = CurrentS("", 0, "", None)
 
         data = MockResponse("0031")
         self.assertEqual(4.9, testee.read(data))
@@ -91,6 +122,18 @@ class TestUtils(TestCase):
 
     def test_power4(self):
         testee = Power4("", 0, "", None)
+
+        data = MockResponse("0000069f")
+        self.assertEqual(1695, testee.read(data))
+
+        data = MockResponse("fffffffd")
+        self.assertEqual(4294967293, testee.read(data))
+
+        data = MockResponse("ffffffff")
+        self.assertEqual(0, testee.read(data))
+
+    def test_power4_signed(self):
+        testee = Power4S("", 0, "", None)
 
         data = MockResponse("0000069f")
         self.assertEqual(1695, testee.read(data))
@@ -110,7 +153,7 @@ class TestUtils(TestCase):
         data = MockResponse("00020972")
         self.assertEqual(13349.0, testee.read(data))
         data = MockResponse("ffffffff")
-        self.assertIsNone(testee.read(data))
+        self.assertEqual(0.0, testee.read(data))
 
     def test_timestamp(self):
         testee = Timestamp("", 0, "", None)
@@ -126,7 +169,6 @@ class TestUtils(TestCase):
         data = MockResponse("0d1e0e28ffc4ff1a")
         self.assertEqual("13:30-14:40 Mon,Wed,Thu -60% On", testee.read(data).__str__())
         self.assertEqual(bytes.fromhex("0d1e0e28ffc4ff1a"), testee.encode_value(bytes.fromhex("0d1e0e28ffc4ff1a")))
-        self.assertRaises(ValueError, lambda: testee.encode_value(bytes.fromhex("0d1e0e28ffc4ffff")))
         self.assertRaises(ValueError, lambda: testee.encode_value("some string"))
         self.assertFalse(testee.read(data).is_eco_charge_mode())
         self.assertFalse(testee.read(data).is_eco_discharge_mode())
@@ -156,7 +198,6 @@ class TestUtils(TestCase):
         self.assertEqual(ScheduleType.ECO_MODE, testee.schedule_type)
         self.assertEqual(bytes.fromhex("0d1e0e28ff1affc4005a0000"),
                          testee.encode_value(bytes.fromhex("0d1e0e28ff1affc4005a0000")))
-        self.assertRaises(ValueError, lambda: testee.encode_value(bytes.fromhex("0d1e0e28ffffffc4005a0000")))
         self.assertRaises(ValueError, lambda: testee.encode_value("some string"))
         self.assertFalse(testee.read(data).is_eco_charge_mode())
         self.assertFalse(testee.read(data).is_eco_discharge_mode())
@@ -176,6 +217,8 @@ class TestUtils(TestCase):
         self.assertFalse(testee.read(data).is_eco_charge_mode())
         self.assertFalse(testee.read(data).is_eco_discharge_mode())
 
+        data = MockResponse("0300080006fefd12005fcfff")
+        self.assertEqual("3:0-8:0 Mon -75% (SoC 95%) Off", testee.read(data).__str__())
         data = MockResponse("0000173b5500001400640000")
         self.assertEqual("0:0-23:59  20% (SoC 100%) Unset", testee.read(data).__str__())
         data = MockResponse("ffffffff557f000000010001")
